@@ -1,56 +1,68 @@
+import { useState, useEffect } from "react";
 import Karves from "./Karves";
 import Avys from "./Avys";
-import { useState, useEffect } from "react";
-import "../crud.scss";
+import getRandomInt from "../Functions/rand";
+import { loadFromStorage, saveToStorage } from "../Functions/local";
+
 
 export default function Ganykla() {
-  const [karves, setKarves] = useState([]);
-  const [avys, setAvys] = useState([]);
+    const [animals, setAnimals] = useState({ karves: [], avys: [] });
 
-  // 🔹 Kai atidarome puslapį, užkrauname iš localStorage
-  useEffect(() => {
-    setKarves(JSON.parse(localStorage.getItem("karves")) || []);
-    setAvys(JSON.parse(localStorage.getItem("avys")) || []);
-  }, []);
+    useEffect(_ => {
+        setAnimals({
+            karves: loadFromStorage("karves", []),
+            avys: loadFromStorage("avys", [])
+        });
+    }, []);
 
-  // 🔹 Išsaugome pokyčius localStorage
-  useEffect(() => {
-    localStorage.setItem("karves", JSON.stringify(karves));
-    localStorage.setItem("avys", JSON.stringify(avys));
-  }, [karves, avys]);
+    useEffect(_ => {
+        if (animals.karves.length || animals.avys.length) {
+            saveToStorage("karves", animals.karves);
+            saveToStorage("avys", animals.avys);
+        }
+    }, [animals]);
 
-  // 🔹 Sugeneruoja naujas karves ir avis
-  const addAnimals = () => {
-    const generateId = (prefix) => prefix + Math.floor(1000000 + Math.random() * 9000000);
-    const newKarves = Array.from({ length: Math.floor(5 + Math.random() * 16) }, () => ({ id: generateId("K") }));
-    const newAvys = Array.from({ length: Math.floor(5 + Math.random() * 16) }, () => ({ id: generateId("A") }));
+    const addAnimals = () => {
+        const createAnimals = (raide, type) =>
+            Array.from({ length: getRandomInt(5, 20) }, _ => ({
+                id: raide + String(getRandomInt(1, 9999999)).padStart(7, '0'),
+                shape: type === "Karve" ? "square" : "circle",
+                type,
+            }));
 
-    setKarves([...karves, ...newKarves]);
-    setAvys([...avys, ...newAvys]);
-  };
-console.log(karves);
-  // 🔹 Funkcija, kuri perkelia gyvulį į priešingą pusę
-  const perkeltiGyvuli = (id, isKarve) => {
-    if (isKarve) {
-      // 🔸 Randame karvę, ištriname ją iš sąrašo ir pridedame į avių sąrašą
-      const karve = karves.find(k => k.id === id);
-      setKarves(karves.filter(k => k.id !== id));
-      setAvys([...avys, karve]);
-    } else {
-      // 🔸 Randame avį, ištriname ją iš sąrašo ir pridedame į karvių sąrašą
-      const avis = avys.find(a => a.id === id);
-      setAvys(avys.filter(a => a.id !== id));
-      setKarves([...karves, avis]);
-    }
-  };
+        setAnimals({
+            karves: [...animals.karves, ...createAnimals("K", "Karve")],
+            avys: [...animals.avys, ...createAnimals("A", "Avis")],
+        });
+    };
 
-  return (
-    <div className="ganykla">
-      <button className="green"onClick={addAnimals}>Į ganyklą</button>
-      <div className="laukas">
-        <Karves karves={karves} perkeltiGyvuli={perkeltiGyvuli} />
-        <Avys avys={avys} perkeltiGyvuli={perkeltiGyvuli} />
-      </div>
-    </div>
-  );
+    const perkeltiGyvuli = (id, isKarve) => {
+        if (isKarve) {
+            const karve = animals.karves.find(k => k.id === id);
+            if (!karve) return;
+
+            setAnimals({
+                karves: animals.karves.filter(k => k.id !== id),
+                avys: [...animals.avys, {...karve}]
+            });
+        } else {
+            const avis = animals.avys.find(a => a.id === id);
+            if (!avis) return;
+
+            setAnimals({
+                karves: [...animals.karves, {...avis}],
+                avys: animals.avys.filter(a => a.id !== id)
+            });
+        }
+    };
+
+    return (
+        <div className="ganykla">
+            <button className="green" onClick={addAnimals}>Į ganyklą</button>
+            <div className="laukas">
+                <Karves karves={animals.karves} perkeltiGyvuli={perkeltiGyvuli} />
+                <Avys avys={animals.avys} perkeltiGyvuli={perkeltiGyvuli} />
+            </div>
+        </div>
+    );
 }
